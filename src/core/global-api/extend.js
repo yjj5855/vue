@@ -7,7 +7,7 @@ export function initExtend (Vue) {
    * cid. This enables us to create wrapped "child
    * constructors" for prototypal inheritance and cache them.
    */
-  Vue.cid = 0
+  Vue.cid = 0 //内部使用的 实例的组件ID 0为根组件ID
   let cid = 1
 
   /**
