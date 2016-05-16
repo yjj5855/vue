@@ -5,9 +5,6 @@
  */
 import Vue from './instance/index'
 
-/**
- * vue项目内部使用的api
- */
 import { initGlobalAPI } from './global-api/index'
 
 initGlobalAPI(Vue)  //设置全局API给Vue类

@@ -26,11 +26,16 @@ export function generate (ast, options) {
   const code = ast ? genElement(ast) : '__h__("div")'
   staticRenderFns = prevStaticRenderFns
   return {
-    render: `with (this) { return ${code}}`,
+    render: `with (this) { return ${code}}`, //with API : https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Statements/with
     staticRenderFns: currentStaticRenderFns
   }
 }
 
+/**
+ * 解析 json 对象 为html字符串
+ * @param el
+ * @returns {string}
+ */
 function genElement (el) {
   if (el.for) {
     return genFor(el)

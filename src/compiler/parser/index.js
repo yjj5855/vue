@@ -42,16 +42,19 @@ export function parse (template, options) {
   platformGetTagNamespace = options.getTagNamespace || (() => null)
   platformMustUseProp = options.mustUseProp || (() => false)
   delimiters = options.delimiters
-  const stack = []
+  const stack = [] //临时的元素数组
   let root
   let currentParent
   let inPre = false
   let warned = false
+  //解析你手写的html模板
   parseHTML(template, {
     expectHTML: options.expectHTML,
-    isUnaryTag: options.isUnaryTag,
+    isUnaryTag: options.isUnaryTag, //一元标签?不知道是什么意思
+
+    //开始解析html中每一个元素的钩子函数 把html模板转换成json对象
     start (tag, attrs, unary) {
-      // check camelCase tag
+      // check camelCase tag 驼峰式大小写检查标签
       if (camelRE.test(tag)) {
         process.env.NODE_ENV !== 'production' && warn(
           `Found camelCase tag in template: <${tag}>. ` +
@@ -69,6 +72,7 @@ export function parse (template, options) {
         children: []
       }
 
+      //被禁止的标签
       if (isForbiddenTag(element)) {
         element.forbidden = true
         process.env.NODE_ENV !== 'production' && warn(
@@ -86,53 +90,60 @@ export function parse (template, options) {
         element.ns = ns
       }
 
+      //检查element是否有v-pre
       if (!inPre) {
         processPre(element)
         if (element.pre) {
           inPre = true
         }
       }
+
+      //如果有 则跳过编译这个element 原始输出这个元素和它的子元素
       if (inPre) {
         processRawAttrs(element)
       } else {
-        processFor(element)
-        processIf(element)
-        processOnce(element)
+        //正常编译流程开始
+        processFor(element) //判断v-for
+        processIf(element) //判断v-if v-else
+        processOnce(element) //判断v-once
         // determine whether this is a plain element after
         // removing if/for/once attributes
         element.plain = !element.key && !attrs.length
-        processRender(element)
-        processSlot(element)
-        processComponent(element)
-        processClassBinding(element)
-        processStyleBinding(element)
-        processTransition(element)
-        processAttrs(element)
+        processRender(element) //判断组件是否写了render方法
+        processSlot(element) //判断slot
+        processComponent(element) //判断是否是component这个特殊标签
+        processClassBinding(element) //判断class
+        processStyleBinding(element) //判断style
+        processTransition(element) //判断transition 过渡
+        processAttrs(element) //判断其他attr
       }
 
       // tree management
       if (!root) {
-        root = element
+        root = element //第一个解析的设置为根元素
       } else if (process.env.NODE_ENV !== 'production' && !stack.length && !warned) {
         warned = true
         warn(
           `Component template should contain exactly one root element:\n\n${template}`
         )
       }
+      //如果当前元素不是被禁止的
       if (currentParent && !element.forbidden) {
-        if (element.else) {
+        if (element.else) { //如果当前元素是v-else 元素 就通过
           processElse(element, currentParent)
         } else {
           currentParent.children.push(element)
           element.parent = currentParent
         }
       }
+      //这个翻译出来是一元元素? 不知道什么意思啊 难道是没有子元素的意思?
       if (!unary) {
         currentParent = element
         stack.push(element)
       }
     },
 
+    //结束解析html中每一个元素的钩子函数
     end (tag) {
       // remove trailing whitespace
       const element = stack[stack.length - 1]
@@ -147,6 +158,7 @@ export function parse (template, options) {
       }
     },
 
+    //解析每一个元素中的文本
     chars (text) {
       if (!currentParent) {
         if (process.env.NODE_ENV !== 'production' && !warned) {
@@ -330,23 +342,29 @@ function processAttrs (el) {
   for (i = 0, l = list.length; i < l; i++) {
     name = list[i].name
     value = list[i].value
+    //如果是vue特殊前缀的attr 执行解析和绑定
     if (dirRE.test(name)) {
       // modifiers
       modifiers = parseModifiers(name)
       if (modifiers) {
         name = name.replace(modifierRE, '')
       }
-      if (bindRE.test(name)) { // v-bind
+      if (bindRE.test(name)) { // v-bind  冒号前缀的attr
         name = name.replace(bindRE, '')
+
+        /**
+         * 如果是组件自己的props 添加到组件的props中
+         * 就是你在组件中声明的props
+         */
         if (platformMustUseProp(name)) {
           addProp(el, name, value)
         } else {
-          addAttr(el, name, value)
+          addAttr(el, name, value) //如果是组件普通的attr 添加到组件的attrs中
         }
-      } else if (onRE.test(name)) { // v-on
+      } else if (onRE.test(name)) { // v-on @和v-on前缀的attr
         name = name.replace(onRE, '')
         addHandler(el, name, value, modifiers)
-      } else { // normal directives
+      } else { // normal directives 指令
         name = name.replace(dirRE, '')
         // parse arg
         if ((arg = name.match(argRE)) && (arg = arg[1])) {
@@ -354,10 +372,10 @@ function processAttrs (el) {
         }
         addDirective(el, name, value, arg, modifiers)
       }
-    } else {
+    } else { //不是vue特殊前缀的attr
       // literal attribute
       if (process.env.NODE_ENV !== 'production') {
-        const expression = parseText(value, delimiters)
+        const expression = parseText(value, delimiters) //通过分隔符解析数据 默认分隔符是 {{ }}
         if (expression) {
           warn(
             `${name}="${value}": ` +
@@ -366,7 +384,7 @@ function processAttrs (el) {
           )
         }
       }
-      addStaticAttr(el, name, JSON.stringify(value))
+      addStaticAttr(el, name, JSON.stringify(value)) //添加到组件的staticAttrs中
     }
   }
 }
